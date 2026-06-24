@@ -1,0 +1,8 @@
+{
+  "id": "safelight-watermark",
+  "name": "Watermark",
+  "version": "1.0.0",
+  "description": "Add a text or PNG image watermark to exported photos. Supports positioning, opacity, size and multiple saved templates. Live preview in Develop: the watermark is drawn directly over the editing canvas and the panel preview auto-refreshes as you edit.",
+  "author": "OPGERUIMD97",
+  "main": "dist/index.js"
+}
