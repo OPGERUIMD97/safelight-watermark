@@ -60,6 +60,8 @@ A Safelight extension that adds a **text or PNG watermark** to exported photos. 
 ### 1.1.0
 - **New:** the "Watermark" section in Safelight's core Export panel now shows real settings instead of "No settings." — an **Apply watermark** toggle and a **Template** dropdown, defaulting to the actively selected template/its enabled state. Lets you override which template is used for a specific export without opening this extension's own panel.
 - The settings list re-registers whenever templates are added/removed/renamed, so the Template dropdown there always stays current.
+- **Fix:** the export processor's `process()` initially used the wrong signature (`blob, settings`) — Safelight actually calls it as `process(blob, photo, settings)`, so the panel's chosen template/toggle were silently ignored and the active template was always used regardless of the dropdown. Corrected to the real 3-argument signature.
+- **Behavior note:** the Export panel's "Apply watermark" toggle overrides this extension's own panel "Enable watermark" checkbox for that specific export — the panel checkbox only supplies the toggle's *default* value when the Export panel first loads it.
 
 ### 1.0.0 — Initial release
 - Text or PNG watermark with configurable font/color, size, opacity, and 7-point anchored positioning.

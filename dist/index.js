@@ -394,16 +394,14 @@ export function activate(api) {
         id:    "safelight-watermark.processor",
         label: "Watermark",
         settings: getProcessorFields(templates),
-        async process(blob, settings) {
+        async process(blob, photo, settings) {
           const tpls = loadTemplates();
-          let tpl = resolveExportTemplate(tpls);
-          if (settings?.template) {
-            const picked = tpls.find(x => x.id === settings.template);
-            if (picked) tpl = picked;
-          }
+          const tpl = tpls.find(x => x.id === settings.template) || resolveExportTemplate(tpls);
           if (!tpl) return blob;
-          if (settings?.enabled === false) return blob;
-          return applyWatermark(blob, tpl);
+          // The Export panel's "Apply watermark" toggle is authoritative for
+          // this export — it overrides the template's own "Enable watermark"
+          // checkbox (which only supplies this toggle's default value).
+          return applyWatermark(blob, { ...tpl, enabled: settings.enabled !== false });
         },
       });
     }, [templates]);
