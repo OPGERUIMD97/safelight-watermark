@@ -1,4 +1,4 @@
-// Safelight Watermark Extension v1.1.0
+// Safelight Watermark Extension v1.1.1
 // Adds a text or transparent PNG watermark to exported photos.
 // Supports multiple saved templates with position, opacity and size.
 // Live in Develop: the watermark is drawn directly over the Develop canvas
@@ -196,8 +196,10 @@ async function drawWatermark(ctx, W, H, t) {
   ctx.globalAlpha = 1;
 }
 
-async function applyWatermark(blob, template) {
-  if (!template.enabled) return blob;
+// Pure compositing: draws the watermark unconditionally, no "enabled" check.
+// Used by the export processor, which decides enable/disable purely from the
+// core Export panel's own toggle — never from this template's own checkbox.
+async function compositeWatermark(blob, template) {
   const bitmap = await createImageBitmap(blob);
   const W = bitmap.width, H = bitmap.height;
   const canvas = new OffscreenCanvas(W, H);
@@ -207,19 +209,25 @@ async function applyWatermark(blob, template) {
   return canvas.convertToBlob({ type: blob.type || "image/jpeg", quality: 0.95 });
 }
 
+// Respects the template's own "enabled" checkbox — used by this extension's
+// own panel (Generate Preview), which simulates "what would Develop show".
+async function applyWatermark(blob, template) {
+  if (!template.enabled) return blob;
+  return compositeWatermark(blob, template);
+}
+
 // ── Export panel settings fields ──────────────────────────────────────────────
 // Builds the field list shown in Safelight's core Export panel (under
 // "Watermark"), so it no longer just says "No settings." — lets you see and
 // override, per export, which template is used and whether it's applied at
-// all, without having to open this extension's own panel first.
+// all, without having to open this extension's own panel first. Defaults are
+// independent of each template's own "enabled" checkbox (that checkbox only
+// controls the live Develop overlay — see DevelopOverlay below).
 function getProcessorFields(tpls) {
   if (!tpls || !tpls.length) return [];
   const active = resolveExportTemplate(tpls);
   return [
-    {
-      key: "enabled", type: "boolean", label: "Apply watermark",
-      default: active ? active.enabled !== false : true,
-    },
+    { key: "enabled", type: "boolean", label: "Apply watermark", default: true },
     {
       key: "template", type: "select", label: "Template",
       options: tpls.map(t => ({ value: t.id, label: t.name })),
@@ -227,6 +235,7 @@ function getProcessorFields(tpls) {
     },
   ];
 }
+
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 export function activate(api) {
@@ -395,13 +404,14 @@ export function activate(api) {
         label: "Watermark",
         settings: getProcessorFields(templates),
         async process(blob, photo, settings) {
+          // The core Export panel's own toggle/dropdown are the single source
+          // of truth here — deliberately independent of this extension's own
+          // panel checkbox (which only controls the live Develop overlay).
+          if (settings.enabled === false) return blob;
           const tpls = loadTemplates();
           const tpl = tpls.find(x => x.id === settings.template) || resolveExportTemplate(tpls);
           if (!tpl) return blob;
-          // The Export panel's "Apply watermark" toggle is authoritative for
-          // this export — it overrides the template's own "Enable watermark"
-          // checkbox (which only supplies this toggle's default value).
-          return applyWatermark(blob, { ...tpl, enabled: settings.enabled !== false });
+          return compositeWatermark(blob, tpl);
         },
       });
     }, [templates]);
@@ -480,12 +490,16 @@ export function activate(api) {
 
       ce("hr", { style: S.divider }),
 
-      // Enable
+      // Note: this checkbox only controls the live preview — the canvas
+      // overlay in Develop and the "Generate Preview" image below. Export
+      // uses its own independent "Apply watermark" toggle in Safelight's
+      // core Export panel (see the Watermark section there), so disabling
+      // the live preview here does NOT skip the watermark on export.
       ce("div", { style: S.row },
         ce("label", { style: { ...S.label, cursor: "pointer", display: "flex", alignItems: "center" } },
           ce("input", { type: "checkbox", style: S.checkbox,
                         checked: t.enabled, onChange: e => update("enabled", e.target.checked) }),
-          "Enable watermark"
+          "Show live in Develop"
         )
       ),
 
