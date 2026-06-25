@@ -1,4 +1,4 @@
-// Safelight Watermark Extension v1.0.0
+// Safelight Watermark Extension v1.1.0
 // Adds a text or transparent PNG watermark to exported photos.
 // Supports multiple saved templates with position, opacity and size.
 // Live in Develop: the watermark is drawn directly over the Develop canvas
@@ -207,6 +207,27 @@ async function applyWatermark(blob, template) {
   return canvas.convertToBlob({ type: blob.type || "image/jpeg", quality: 0.95 });
 }
 
+// ── Export panel settings fields ──────────────────────────────────────────────
+// Builds the field list shown in Safelight's core Export panel (under
+// "Watermark"), so it no longer just says "No settings." — lets you see and
+// override, per export, which template is used and whether it's applied at
+// all, without having to open this extension's own panel first.
+function getProcessorFields(tpls) {
+  if (!tpls || !tpls.length) return [];
+  const active = resolveExportTemplate(tpls);
+  return [
+    {
+      key: "enabled", type: "boolean", label: "Apply watermark",
+      default: active ? active.enabled !== false : true,
+    },
+    {
+      key: "template", type: "select", label: "Template",
+      options: tpls.map(t => ({ value: t.id, label: t.name })),
+      default: active ? active.id : tpls[0].id,
+    },
+  ];
+}
+
 // ── Panel ─────────────────────────────────────────────────────────────────────
 export function activate(api) {
   const { react: React, stores } = api;
@@ -364,17 +385,28 @@ export function activate(api) {
       return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); };
     }, [previewUrl]);
 
-    // Register export processor
+    // Register export processor — settings fields populate the "Watermark"
+    // section in Safelight's core Export panel (instead of "No settings."),
+    // and re-register whenever the template list changes so the "Template"
+    // dropdown there always reflects the current templates.
     useEffect(() => {
       return api.registerExportProcessor({
         id:    "safelight-watermark.processor",
         label: "Watermark",
-        async process(blob) {
+        settings: getProcessorFields(templates),
+        async process(blob, settings) {
           const tpls = loadTemplates();
-          return applyWatermark(blob, resolveExportTemplate(tpls));
+          let tpl = resolveExportTemplate(tpls);
+          if (settings?.template) {
+            const picked = tpls.find(x => x.id === settings.template);
+            if (picked) tpl = picked;
+          }
+          if (!tpl) return blob;
+          if (settings?.enabled === false) return blob;
+          return applyWatermark(blob, tpl);
         },
       });
-    }, []);
+    }, [templates]);
 
     return ce("div", { style: S.container },
 
