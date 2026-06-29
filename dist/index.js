@@ -31,7 +31,7 @@ const DEFAULT_TEMPLATE = {
 
 const S = {
   container: {
-    background: "var(--color-surface-0)", color: "var(--color-text-primary)",
+    background: "var(--color-surface-1)", color: "var(--color-text-primary)",
     fontFamily: "system-ui, -apple-system, sans-serif",
     fontSize: 11, padding: "10px 12px",
     height: "100%", overflowY: "auto", boxSizing: "border-box",
