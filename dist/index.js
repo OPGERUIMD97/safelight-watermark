@@ -1,4 +1,4 @@
-// Safelight Watermark Extension v1.1.1
+// Safelight Watermark Extension v1.2.0
 // Adds a text or transparent PNG watermark to exported photos.
 // Supports multiple saved templates with position, opacity and size.
 // Live in Develop: the watermark is drawn directly over the Develop canvas
@@ -31,7 +31,7 @@ const DEFAULT_TEMPLATE = {
 
 const S = {
   container: {
-    background: "var(--color-surface-1)", color: "var(--color-text-primary)",
+    background: "var(--color-surface-0)", color: "var(--color-text-primary)",
     fontFamily: "system-ui, -apple-system, sans-serif",
     fontSize: 11, padding: "10px 12px",
     height: "100%", overflowY: "auto", boxSizing: "border-box",
@@ -243,6 +243,14 @@ export function activate(api) {
   const { useState, useEffect, useRef, useCallback } = React;
   const ce = (type, props, ...ch) => React.createElement(type, props, ...ch);
 
+  // Wayland / Niri fix: Electron's global shortcut handler intercepts keydown
+  // events before they reach input elements when running under Wayland. Adding
+  // stopPropagation() on every typeable input prevents that interception, so
+  // characters actually appear in the text box.
+  // On X11/macOS/Windows this is a no-op — stopPropagation has no side effects
+  // on vanilla platforms because the global handler runs in a separate context.
+  const stopKeys = e => e.stopPropagation();
+
   function WatermarkPanel() {
     const [templates, setTemplates] = useState(loadTemplates);
     const [activeIdx, setActiveIdx] = useState(() => {
@@ -442,6 +450,7 @@ export function activate(api) {
           type: "text", value: newName, autoFocus: true,
           onChange: e => setNewName(e.target.value),
           onKeyDown: e => {
+            stopKeys(e);
             if (e.key === "Enter") {
               if (newName.trim()) {
                 setTemplates(prev => {
@@ -476,6 +485,7 @@ export function activate(api) {
               autoFocus: true,
               onChange: e => setNewName(e.target.value),
               onKeyDown: e => {
+                stopKeys(e);
                 if (e.key === "Enter") addTemplate(newName);
                 if (e.key === "Escape") { setShowNew(false); setNewName(""); }
               }
@@ -523,6 +533,7 @@ export function activate(api) {
         ce("div", { style: S.row },
           ce("span", { style: S.label }, "Text"),
           ce("input", { style: S.input, type: "text", value: t.text,
+                        onKeyDown: stopKeys,
                         onChange: e => update("text", e.target.value) })
         ),
         ce("div", { style: S.row },
@@ -564,11 +575,13 @@ export function activate(api) {
       ce("div", { style: S.row },
         ce("span", { style: S.label }, "Size (% of long edge)"),
         ce("input", { style: S.inputSmall, type: "number", min: 0.5, max: 50, step: 0.5,
+                      onKeyDown: stopKeys,
                       value: t.fontSize, onChange: e => update("fontSize", Number(e.target.value)) })
       ),
       ce("div", { style: S.row },
         ce("span", { style: S.label }, "Opacity (%)"),
         ce("input", { style: S.inputSmall, type: "number", min: 0, max: 100,
+                      onKeyDown: stopKeys,
                       value: t.opacity, onChange: e => update("opacity", Number(e.target.value)) })
       ),
 
@@ -587,11 +600,13 @@ export function activate(api) {
       ce("div", { style: S.row },
         ce("span", { style: S.label }, "Offset X (%)"),
         ce("input", { style: S.inputSmall, type: "number", min: 0, max: 20, step: 0.5,
+                      onKeyDown: stopKeys,
                       value: t.offsetX, onChange: e => update("offsetX", Number(e.target.value)) })
       ),
       ce("div", { style: S.row },
         ce("span", { style: S.label }, "Offset Y (%)"),
         ce("input", { style: S.inputSmall, type: "number", min: 0, max: 20, step: 0.5,
+                      onKeyDown: stopKeys,
                       value: t.offsetY, onChange: e => update("offsetY", Number(e.target.value)) })
       ),
 
