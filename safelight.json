@@ -1,8 +1,11 @@
 {
   "id": "safelight-watermark",
   "name": "Watermark",
-  "version": "1.2.0",
-  "description": "Add a text or PNG image watermark to exported photos. Supports positioning, opacity, size and multiple saved templates. Live preview in Develop: the watermark is drawn directly over the editing canvas and the panel preview auto-refreshes as you edit.",
+  "version": "1.3.0",
+  "description": "Text or PNG watermark stored on the photo. Develop edits it on the open photo. Library applies watermark 1 to the selected photos.",
   "author": "OPGERUIMD97",
-  "main": "dist/index.js"
+  "main": "dist/index.js",
+  "license": "MIT",
+  "repository": "OPGERUIMD97/safelight-watermark",
+  "minAppVersion": "3.2.6"
 }

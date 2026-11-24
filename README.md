@@ -1,87 +1,95 @@
 # Safelight Watermark
 
-A Safelight extension that adds a **text or transparent PNG watermark** to exported photos. Supports positioning, opacity, size, multiple saved templates, and a live preview while editing in Develop.
+A text or transparent PNG watermark for [Safelight](https://github.com/anthonyreimche/SafeLight). The mark is stored on the photo. Develop draws it on the open photo. The library thumbnail draws it on top of the cell. Export burns in the marks saved on that photo.
 
-- **Version:** 1.2.0
+- **Version:** 1.3.0
+- **Requires:** Safelight 3.2.6 or newer
 - **Author:** OPGERUIMD97
 - **Entry point:** `dist/index.js`
 
----
+## Install
 
-## Features
+In Safelight, go to **View ▸ Extensions** and enter:
 
-- **Two modes:** text watermark or transparent PNG image.
-- **Multiple templates:** save different configurations under their own name and switch between them with one click. The active template is remembered across restarts.
-- **Fully configurable per template:**
-  - Show live in Develop (controls the canvas overlay and panel preview only — does not affect export)
-  - Font, color (text mode only)
-  - Size (% of the photo's long edge)
-  - Opacity (0–100%)
-  - Position: 7 anchor points (`bottom-right`, `bottom-left`, `bottom-center`, `top-right`, `top-left`, `top-center`, `center`)
-  - Offset X/Y from the edge (%)
-- **Live in Develop:**
-  - The watermark is drawn directly over the Develop canvas as you edit (via the `develop-canvas-overlay` slot) — the real watermark, not a simplified guide.
-  - The panel preview auto-refreshes as you make changes in Develop (debounced at 400 ms), via `api.develop.captureFrame` — the same render path as export.
-  - In Library (no active Develop session), a manual "Generate Preview" button is available, using the unedited photo thumbnail or a sample image.
-- **Export integration:** the "Watermark" section in Safelight's core Export panel shows an **Apply watermark** toggle and a **Template** dropdown (instead of "No settings."), defaulting to the actively selected template. Export is governed exclusively by those Export panel controls — not by the "Show live in Develop" checkbox.
-- **Automatic application on export** via a registered export processor.
+```
+OPGERUIMD97/safelight-watermark
+```
 
----
+Then open **Develop ▸ Watermark**. Safelight 3.2.6 or newer.
 
-## How it works
+## In Develop
 
-1. The extension registers a panel (`safelight-watermark.panel`) on the right side of the UI, and a canvas overlay (`safelight-watermark.develop-overlay`) on the `develop-canvas-overlay` slot.
-2. In the panel you manage templates: create, rename (double-click the tag), delete, and adjust all watermark settings.
-3. Settings are stored in `localStorage` under `safelight-watermark-templates`; the active template id is stored under `safelight-watermark-active-id`.
-4. On export, a registered processor (`safelight-watermark.processor`) applies the template chosen in the Export panel via `OffscreenCanvas`.
-5. Watermark text is scaled from the photo's long edge (`fontSize` as a percentage), so it looks consistent at any resolution — in the Develop overlay, the panel preview, and on export.
+The Watermark panel edits the photo that is open.
 
----
+- **Watermark 1** is off until you choose **Text** or **PNG Image**. **Empty** is the default and draws nothing. **Add watermark (★ name)** applies the default template.
+- **Templates** are round chips. The default is marked ★. **☆ Set as default**, **Rename**, **Overwrite**, **Save as template**, **Delete**, and **Reset all**. Double-click a chip to rename it. Saving under a name that already exists overwrites that template.
+- **Size, opacity, rotate, offset X and offset Y** are sliders. **Font** and **Anchor** are choice lists. Colour is a swatch with an eyedropper.
+- Drag the mark on the photo to move it. Drag the dot to rotate it.
+- **Add extra watermark** opens Watermark 2, 3, … under this panel. Each one starts empty. A template chip on that panel applies the look and turns it on. These extra marks exist only in Develop.
+- A green dot in the header means that watermark is on this photo. Hold the eye to hide it. Right-click the header and choose **Reset to defaults** to turn that one watermark off, as one undo step. **Reset all** also deletes every template, after you confirm.
+
+The look (text, PNG, font, colour, size, opacity) lives on the template. The photo stores which template watermark 1 uses, and where the mark sits. Change the template later and every photo that points at it changes with it. An extra watermark keeps its own copy of the look.
+
+## In the Library
+
+Dock the Watermark panel in the Library to put watermark 1 on many photos at once. The panel there is a different set of controls. It does not show the Develop sliders, and it does not open extra watermarks.
+
+1. Select photos in the grid.
+2. Pick a template chip. The default ★ is picked first. Picking a chip does not apply it yet.
+3. Click **Apply to N photos**. **Remove watermark** takes watermark 1 off again.
+4. Export as usual. Each photo carries the watermark saved on it.
+
+Every selected photo gets one undoable step. Extra watermarks already on a photo stay as they are. The panel works on the selection, not on the Develop controls of the photo that happens to be open. Fine-tune a single photo in Develop.
+
+A green dot in the header, and a line in the panel, show how many of the selected photos have watermark 1. The library thumbnail draws the saved marks on top of the cell as soon as they are stored. The thumbnail picture itself is not rebuilt.
+
+The Library Export panel has no Watermark section. Export still burns in the marks saved on each photo.
 
 ## Files
 
 | File | Description |
 |---|---|
-| `index.js` | Full extension source: UI panel, Develop overlay, storage, watermark render logic, and export processor. |
-| `safelight.json` | Extension manifest (name, version, description, author, entry point). |
-
----
+| `src/index.js` | Extension source. `dist/index.js` is the copy Safelight loads. |
+| `safelight.json` | Manifest: name, version, minimum app version, entry point. |
+| `.github/workflows/release.yml` | Publishes a GitHub release when a `v*` tag is pushed. |
 
 ## Technical notes
 
-- **Styling** uses CSS variables from the Safelight theme (`--color-surface-*`, `--color-accent`, `--color-text-*`, `--color-border*`), so the extension follows the active theme automatically including dark mode.
-- **Wayland/Niri compatibility:** all text and number inputs include `onKeyDown: e => e.stopPropagation()`. Under Wayland, Electron's global shortcut handler intercepts keydown events before they reach input elements; `stopPropagation()` prevents that interception. On X11, macOS, and Windows this is a no-op.
-- **No `confirm()` dialog:** `window.confirm` is not available in Electron. Deleting a template happens immediately (the last remaining template cannot be deleted).
-- Images are stored as a base64 data URL inside the template object — no separate file is written to disk.
-- The Develop overlay and the panel preview share one helper (`getWatermarkBoxStyle`) for positioning, so both always show the same placement.
-- **Separation of concerns:** `compositeWatermark()` (used by the export processor) never checks `template.enabled`. `applyWatermark()` (used by the panel preview) does check it, since the preview simulates what the Develop overlay shows.
-
----
+- The panel uses the same controls as Border: `api.components.Slider`, `api.ui.Select`, and the theme colours (`var(--color-*)`). It does not set its own font or background.
+- A slider writes while you drag and commits once when you let go. Double-click resets it to the default value.
+- **Wayland/Niri:** text fields call `stopPropagation()` on keydown so characters reach the box.
+- There is no `confirm()` dialog. Delete is hidden when only one template is left. **Reset all** asks in the panel.
+- A PNG is stored as a data URL inside the template or the photo's mark.
+- The Develop overlay follows the whole photo while zooming (`imageRect`), including a mark you dragged free on the picture.
+- Templates live in this Safelight profile (`safelight-watermark-templates`). The default template is `safelight-watermark-default-id`.
 
 ## Changelog
 
+### 1.3.0
+
+- The Develop panel uses the same layout as Border: green dot, sliders, choice lists, round template chips, and a colour swatch with an eyedropper.
+- **Empty** is the default for watermark 1 and draws nothing. **Text** or **PNG Image** turns it on. **Add extra watermark** opens another overlay for this photo only. A new extra panel starts empty. Rename, Overwrite, and Save as template with an existing name update that template. **Reset all** deletes every template and clears the watermarks on the open photo.
+- In the Library the same panel applies watermark 1 to the selected photos, or removes it. Each photo gets one undo step. Extra watermarks stay in Develop.
+- The library thumbnail draws the marks saved on the photo. Export burns those marks in. The Export panel no longer lists Watermark.
+- Hold the eye to hide that panel's mark. **Reset to defaults** turns that watermark off on the open photo, as one undo step.
+
 ### 1.2.0
-- **Fix (Wayland/Niri):** text boxes in the panel were not editable under Wayland. Added `e.stopPropagation()` on `onKeyDown` to all typeable inputs (watermark text, template name fields, size, opacity, offset X/Y), preventing Safelight's global shortcut handler from intercepting keystrokes before they reach the input element.
+
+- **Fix (Wayland/Niri):** text boxes in the panel were not editable under Wayland. Added `e.stopPropagation()` on `onKeyDown` to all typeable inputs, so Safelight's shortcut handler does not take the keystrokes.
 
 ### 1.1.0
-- **New:** the "Watermark" section in Safelight's core Export panel now shows an **Apply watermark** toggle and a **Template** dropdown instead of "No settings." The settings list re-registers whenever templates change, so the dropdown always stays current.
-- **Fix:** export processor used wrong signature `process(blob, settings)` — Safelight calls `process(blob, photo, settings)` — so the panel's chosen template was silently ignored.
-- **Architecture:** the panel checkbox (renamed "Show live in Develop", was "Enable watermark") now only controls the live Develop overlay and the panel preview. Export is governed exclusively by the core Export panel controls via a dedicated `compositeWatermark()` path.
 
-### 1.0.0 — Initial release
-- Text or PNG watermark with configurable font/color, size, opacity, and 7-point anchored positioning.
-- Multiple saved templates with persisted active selection.
-- Live watermark overlay directly on the Develop canvas while editing.
-- Auto-refreshing panel preview via `api.develop.captureFrame`, matching the export render path.
-- Export processor always applies the actively selected template.
+- **New:** the Watermark section in the Export panel showed an Apply toggle and a Template dropdown.
+- **Fix:** the export processor used `process(blob, settings)`. Safelight calls `process(blob, photo, settings)`, so the chosen template was ignored.
 
----
+### 1.0.0
+
+- Text or PNG watermark with font, colour, size, opacity, and anchored placement.
+- Saved templates.
+- Live watermark on the Develop canvas.
+- Export of the selected template.
 
 ## Possible future improvements
 
 - No size validation for very large PNGs (memory usage when base64-encoded into `localStorage`).
-- No way to export/share templates between users or installs.
-
----
-
-*This file is kept up to date as the extension changes.*
+- No way to export or share templates between installs.
